@@ -45,21 +45,22 @@ class Visitor(object):
 	def visitObject(self, obj, *args, **kwargs):
 		keys = sorted(vars(obj).keys())
 		_visitors = self._visitorsFor(obj)
-		defaultVisitor = _visitors.get('*', self.__class__.visitAttr)
+		defaultVisitor = _visitors.get('*', None)
 		for key in keys:
 			value = getattr(obj, key)
-			visitorFunc = _visitors.get(key)
-			if visitorFunc is None:
-				defaultVisitor(self, obj, key, value, *args, **kwargs)
-			else:
-				visitorFunc(self, obj, key, value, *args, **kwargs)
+			visitorFunc = _visitors.get(key, defaultVisitor)
+			if visitorFunc is not None:
+				ret = visitorFunc(self, obj, key, value, *args, **kwargs)
+				if ret == False or (ret is None and self.defaultStop):
+				  continue
+			self.visitAttr(obj, key, value, *args, **kwargs)
 
 	def visitAttr(self, obj, attr, value, *args, **kwargs):
-		self.__class__.visit(self, value, *args, **kwargs)
+		self.visit(value, *args, **kwargs)
 
 	def visitList(self, obj, *args, **kwargs):
 		for value in obj:
-			self.visit(value, values)
+			self.visit(value, *args, **kwargs)
 
 	def visit(self, obj, *args, **kwargs):
 		visitorFunc = self._visitorsFor(obj).get(None, None)
@@ -101,6 +102,7 @@ def visit(visitor, obj, arg):
 def visit(visitor, obj, attr, value, arg):
 	setattr(obj, attr, arg)
 	print("A", attr)
+	return False
 
 @DFS.register(B)
 def visit(visitor, obj, arg):
