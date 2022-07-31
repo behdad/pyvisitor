@@ -1,6 +1,8 @@
 
 class Visitor(object):
 
+	defaultStop = False
+
 	@classmethod
 	def register(celf, clazzes, attrs=(None,)):
 		assert celf != Visitor, 'Subclass Visitor instead.'
@@ -43,14 +45,17 @@ class Visitor(object):
 	def visitObject(self, obj, *args, **kwargs):
 		keys = sorted(vars(obj).keys())
 		_visitors = self._visitorsFor(obj)
-		defaultVisitor = _visitors.get('*', self.__class__.visit)
+		defaultVisitor = _visitors.get('*', self.__class__.visitAttr)
 		for key in keys:
 			value = getattr(obj, key)
 			visitorFunc = _visitors.get(key)
 			if visitorFunc is None:
-				defaultVisitor(self, value, *args, **kwargs)
+				defaultVisitor(self, obj, key, value, *args, **kwargs)
 			else:
 				visitorFunc(self, obj, key, value, *args, **kwargs)
+
+	def visitAttr(self, obj, attr, value, *args, **kwargs):
+		self.__class__.visit(self, value, *args, **kwargs)
 
 	def visitList(self, obj, *args, **kwargs):
 		for value in obj:
@@ -59,7 +64,8 @@ class Visitor(object):
 	def visit(self, obj, *args, **kwargs):
 		visitorFunc = self._visitorsFor(obj).get(None, None)
 		if visitorFunc is not None:
-			if visitorFunc(self, obj, *args, **kwargs) == False:
+			ret = visitorFunc(self, obj, *args, **kwargs)
+			if ret == False or (ret is None and self.defaultStop):
 			  return
 		if hasattr(obj, '__dict__'):
 			self.visitObject(obj, *args, **kwargs)
@@ -68,6 +74,8 @@ class Visitor(object):
 
 
 class DFS(Visitor):
+
+	defaultStop = False
 
 	def visit(self, obj, arg):
 		print("generic", type(obj))
@@ -89,7 +97,7 @@ class C:
 def visit(visitor, obj, arg):
 	print("A")
 
-@DFS.register(A, 'count')
+@DFS.register(A, '*')
 def visit(visitor, obj, attr, value, arg):
 	setattr(obj, attr, arg)
 	print("A", attr)
